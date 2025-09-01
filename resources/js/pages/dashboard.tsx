@@ -4,6 +4,7 @@ import { AppShell } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { AdminDashboard, LabAssistantDashboard, StudentDashboard } from '@/components/role-dashboards';
 
 interface Equipment {
     id: number;
@@ -128,7 +129,9 @@ export default function Dashboard({
                     </h1>
                     <p className="text-blue-100">
                         {user.role === 'student' && 'Browse available equipment and manage your loan requests'}
+                        {user.role === 'lecturer' && 'Browse available equipment and manage your loan requests'}
                         {user.role === 'lab_assistant' && `Manage ${laboratory?.name || 'your laboratory'} equipment and requests`}
+                        {user.role === 'lab_head' && `Oversee ${laboratory?.name || 'your laboratory'} operations and approvals`}
                         {user.role === 'admin' && 'System overview and administration'}
                     </p>
                 </div>
@@ -391,101 +394,33 @@ export default function Dashboard({
                     </>
                 )}
 
-                {/* Admin Dashboard */}
+                {/* Role-Based Dashboard Content */}
                 {user.role === 'admin' && (
-                    <>
-                        {/* Recent Requests */}
-                        <Card>
-                            <CardHeader>
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <CardTitle>📋 Recent Requests</CardTitle>
-                                        <CardDescription>
-                                            Latest loan requests across all laboratories
-                                        </CardDescription>
-                                    </div>
-                                    <Link href="/loan-requests">
-                                        <Button variant="outline">View All</Button>
-                                    </Link>
-                                </div>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="space-y-4">
-                                    {recentRequests?.map((request) => (
-                                        <div key={request.id} className="border rounded-lg p-4">
-                                            <div className="flex items-center justify-between mb-2">
-                                                <div>
-                                                    <h3 className="font-semibold">{request.equipment.name}</h3>
-                                                    <p className="text-sm text-gray-600">
-                                                        {request.user?.name} • {request.laboratory?.name}
-                                                    </p>
-                                                </div>
-                                                <Badge className={getStatusBadge(request.status)}>
-                                                    {request.status}
-                                                </Badge>
-                                            </div>
-                                            <Link href={`/loan-requests/${request.id}`}>
-                                                <Button size="sm" variant="outline">View Details</Button>
-                                            </Link>
-                                        </div>
-                                    ))}
-                                </div>
-                                
-                                {(!recentRequests || recentRequests.length === 0) && (
-                                    <div className="text-center py-8">
-                                        <p className="text-gray-500">No recent requests</p>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
+                    <AdminDashboard
+                        stats={stats}
+                        recentRequests={recentRequests || []}
+                        laboratories={laboratories || []}
+                        pendingVerifications={[]} // This would come from props in real implementation
+                    />
+                )}
 
-                        {/* Laboratories Overview */}
-                        <Card>
-                            <CardHeader>
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <CardTitle>🏢 Laboratories</CardTitle>
-                                        <CardDescription>
-                                            Overview of all laboratories
-                                        </CardDescription>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <Link href="/laboratories/create">
-                                            <Button size="sm">Add Laboratory</Button>
-                                        </Link>
-                                        <Link href="/laboratories">
-                                            <Button variant="outline" size="sm">View All</Button>
-                                        </Link>
-                                    </div>
-                                </div>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                    {laboratories?.map((lab) => (
-                                        <div key={lab.id} className="border rounded-lg p-4">
-                                            <h3 className="font-semibold mb-1">{lab.name}</h3>
-                                            <p className="text-sm text-gray-600 mb-3">{lab.code}</p>
-                                            <div className="text-sm text-gray-600 mb-3">
-                                                <div>Equipment: {lab.equipment_count}</div>
-                                                <div>Requests: {lab.loan_requests_count}</div>
-                                            </div>
-                                            <Link href={`/laboratories/${lab.id}`}>
-                                                <Button size="sm" variant="outline" className="w-full">
-                                                    Manage
-                                                </Button>
-                                            </Link>
-                                        </div>
-                                    ))}
-                                </div>
-                                
-                                {(!laboratories || laboratories.length === 0) && (
-                                    <div className="text-center py-8">
-                                        <p className="text-gray-500">No laboratories found</p>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                    </>
+                {(user.role === 'lab_assistant' || user.role === 'lab_head') && laboratory && (
+                    <LabAssistantDashboard
+                        stats={stats}
+                        pendingRequests={pendingRequests || []}
+                        myEquipment={myEquipment || []}
+                        todaySchedule={[]} // This would come from props in real implementation
+                        laboratory={laboratory}
+                    />
+                )}
+
+                {(user.role === 'student' || user.role === 'lecturer') && (
+                    <StudentDashboard
+                        stats={stats}
+                        availableEquipment={availableEquipment || []}
+                        myRequests={myRequests || []}
+                        upcomingSchedule={[]} // This would come from props in real implementation
+                    />
                 )}
             </div>
         </AppShell>

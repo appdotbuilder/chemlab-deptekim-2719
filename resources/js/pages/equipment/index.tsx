@@ -1,24 +1,29 @@
 import React from 'react';
-import { Head, Link, router, usePage } from '@inertiajs/react';
-import { AppShell } from '@/components/app-shell';
-import { Button } from '@/components/ui/button';
+import { Head, usePage } from '@inertiajs/react';
+import AppLayout from '@/layouts/app-layout';
+import { EquipmentGrid } from '@/components/equipment-grid';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface Equipment {
     id: number;
     name: string;
     code: string;
     brand: string;
-    model: string;
-    total_quantity: number;
+    model?: string;
+    description?: string;
     available_quantity: number;
+    total_quantity: number;
     condition: string;
     status: string;
     laboratory: {
         name: string;
         code: string;
     };
+    image_url?: string;
+    category?: string;
+    hazard_class?: string;
+    requires_training?: boolean;
 }
 
 interface Laboratory {
@@ -27,278 +32,210 @@ interface Laboratory {
     code: string;
 }
 
+interface User {
+    id: number;
+    name: string;
+    email: string;
+    role: string;
+    laboratory?: Laboratory;
+}
+
 interface Props {
     equipment: {
         data: Equipment[];
-        links: Array<{
-            url: string | null;
-            label: string;
-            active: boolean;
-        }>;
         current_page: number;
         last_page: number;
+        total: number;
+        per_page: number;
     };
     laboratories: Laboratory[];
-    filters: {
+    filters?: {
         search?: string;
+        laboratory?: string;
+        category?: string;
+        condition?: string;
         status?: string;
-        laboratory_id?: string;
+    };
+    stats: {
+        total_equipment: number;
+        available_equipment: number;
+        maintenance_equipment: number;
+        categories_count: number;
     };
     [key: string]: unknown;
 }
 
-export default function EquipmentIndex({ equipment, laboratories, filters }: Props) {
-    interface User {
-        id: number;
-        name: string;
-        email: string;
-        role: string;
-    }
-    
+export default function EquipmentIndex({ equipment, laboratories, filters, stats }: Props) {
     const { auth } = usePage<{ auth: { user: User } }>().props;
     const user = auth.user;
+    
+    const canRequest = user.role === 'student' || user.role === 'lecturer';
+    const hasMore = equipment.current_page < equipment.last_page;
 
-    const getStatusBadge = (status: string) => {
-        const variants = {
-            active: 'bg-green-100 text-green-800',
-            maintenance: 'bg-yellow-100 text-yellow-800',
-            retired: 'bg-red-100 text-red-800'
-        };
-        return variants[status as keyof typeof variants] || 'bg-gray-100 text-gray-800';
-    };
-
-    const getConditionBadge = (condition: string) => {
-        const variants = {
-            excellent: 'bg-green-100 text-green-800',
-            good: 'bg-blue-100 text-blue-800',
-            fair: 'bg-yellow-100 text-yellow-800',
-            poor: 'bg-red-100 text-red-800'
-        };
-        return variants[condition as keyof typeof variants] || 'bg-gray-100 text-gray-800';
-    };
-
-    const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        const formData = new FormData(e.currentTarget);
-        const search = formData.get('search') as string;
-        const status = formData.get('status') as string;
-        const laboratory_id = formData.get('laboratory_id') as string;
-        
-        router.get('/equipment', {
-            search: search || undefined,
-            status: status || undefined,
-            laboratory_id: laboratory_id || undefined,
-        }, {
-            preserveState: true,
-            replace: true
-        });
-    };
-
-    const handleEquipmentRequest = (equipmentId: number) => {
-        router.get(`/loan-requests/create?equipment_id=${equipmentId}`);
-    };
+    const breadcrumbs = [
+        { title: 'Dashboard', href: '/dashboard' },
+        { title: 'Equipment Inventory', href: '/equipment' },
+    ];
 
     return (
-        <AppShell>
-            <Head title="Equipment" />
+        <AppLayout breadcrumbs={breadcrumbs}>
+            <Head title="Equipment Inventory" />
             
             <div className="space-y-8">
-                {/* Header */}
+                {/* Page Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900">🔬 Laboratory Equipment</h1>
-                        <p className="text-gray-600">
-                            {user.role === 'student' && 'Browse and request available equipment'}
-                            {user.role === 'lab_assistant' && 'Manage your laboratory equipment'}
-                            {user.role === 'admin' && 'System-wide equipment management'}
+                        <h1 className="text-3xl font-bold text-gray-900">
+                            🔬 Equipment Inventory
+                        </h1>
+                        <p className="text-gray-600 mt-2">
+                            Browse and manage laboratory equipment across all departments
                         </p>
                     </div>
-                    
-                    {(user.role === 'lab_assistant' || user.role === 'admin') && (
-                        <Link href="/equipment/create">
-                            <Button>Add Equipment</Button>
-                        </Link>
-                    )}
                 </div>
 
-                {/* Filters */}
+                {/* Statistics Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <Card className="hover:shadow-md transition-shadow">
+                        <CardContent className="p-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-gray-600">Total Equipment</p>
+                                    <p className="text-3xl font-bold text-blue-600">{stats.total_equipment}</p>
+                                </div>
+                                <div className="p-3 bg-blue-100 rounded-full">
+                                    <span className="text-2xl">⚗️</span>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="hover:shadow-md transition-shadow">
+                        <CardContent className="p-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-gray-600">Available Now</p>
+                                    <p className="text-3xl font-bold text-green-600">{stats.available_equipment}</p>
+                                </div>
+                                <div className="p-3 bg-green-100 rounded-full">
+                                    <span className="text-2xl">✅</span>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="hover:shadow-md transition-shadow">
+                        <CardContent className="p-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-gray-600">Under Maintenance</p>
+                                    <p className="text-3xl font-bold text-yellow-600">{stats.maintenance_equipment}</p>
+                                </div>
+                                <div className="p-3 bg-yellow-100 rounded-full">
+                                    <span className="text-2xl">🔧</span>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="hover:shadow-md transition-shadow">
+                        <CardContent className="p-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-gray-600">Categories</p>
+                                    <p className="text-3xl font-bold text-purple-600">{stats.categories_count}</p>
+                                </div>
+                                <div className="p-3 bg-purple-100 rounded-full">
+                                    <span className="text-2xl">📂</span>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* Equipment Grid */}
                 <Card>
                     <CardHeader>
-                        <CardTitle>Filters</CardTitle>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <CardTitle className="text-xl">Equipment Catalog</CardTitle>
+                                <CardDescription>
+                                    Showing {equipment.data.length} of {equipment.total} items
+                                    {filters?.search && ` for "${filters.search}"`}
+                                </CardDescription>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Badge variant="outline">
+                                    Page {equipment.current_page} of {equipment.last_page}
+                                </Badge>
+                                {canRequest && (
+                                    <Badge className="bg-green-100 text-green-800">
+                                        🎯 You can request equipment
+                                    </Badge>
+                                )}
+                            </div>
+                        </div>
                     </CardHeader>
                     <CardContent>
-                        <form onSubmit={handleSearch} className="grid grid-cols-1 gap-4 sm:grid-cols-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Search
-                                </label>
-                                <input
-                                    type="text"
-                                    name="search"
-                                    defaultValue={filters.search || ''}
-                                    placeholder="Equipment name, code, or brand..."
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                />
-                            </div>
-                            
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Status
-                                </label>
-                                <select
-                                    name="status"
-                                    defaultValue={filters.status || ''}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                >
-                                    <option value="">All Status</option>
-                                    <option value="active">Active</option>
-                                    <option value="maintenance">Maintenance</option>
-                                    <option value="retired">Retired</option>
-                                </select>
-                            </div>
-                            
-                            {user.role === 'admin' && (
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Laboratory
-                                    </label>
-                                    <select
-                                        name="laboratory_id"
-                                        defaultValue={filters.laboratory_id || ''}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    >
-                                        <option value="">All Laboratories</option>
-                                        {laboratories.map((lab) => (
-                                            <option key={lab.id} value={lab.id}>
-                                                {lab.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            )}
-                            
-                            <div className="flex items-end">
-                                <Button type="submit" className="w-full">
-                                    Apply Filters
-                                </Button>
-                            </div>
-                        </form>
+                        <EquipmentGrid
+                            equipment={equipment.data}
+                            laboratories={laboratories}
+                            filters={filters}
+                            canRequest={canRequest}
+                            hasMore={hasMore}
+                            onLoadMore={() => {
+                                // Implement infinite scroll or pagination
+                                window.location.href = `${window.location.pathname}?${new URLSearchParams({
+                                    ...filters,
+                                    page: (equipment.current_page + 1).toString()
+                                }).toString()}`;
+                            }}
+                        />
                     </CardContent>
                 </Card>
 
-                {/* Equipment Grid */}
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                    {equipment.data.map((item) => (
-                        <Card key={item.id} className="hover:shadow-lg transition-shadow">
-                            <CardContent className="p-6">
-                                <div className="flex items-start justify-between mb-3">
-                                    <div className="flex-1">
-                                        <h3 className="font-semibold text-gray-900 mb-1">{item.name}</h3>
-                                        <p className="text-sm text-gray-600">{item.code}</p>
-                                        <p className="text-xs text-gray-500">
-                                            {item.brand} {item.model && `• ${item.model}`}
-                                        </p>
+                {/* Help Section for Students */}
+                {canRequest && (
+                    <Card className="bg-blue-50 border-blue-200">
+                        <CardHeader>
+                            <CardTitle className="text-lg flex items-center gap-2">
+                                💡 How to Request Equipment
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                                <div className="flex items-start gap-3">
+                                    <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                                        1
                                     </div>
-                                    <div className="flex flex-col gap-1">
-                                        <Badge className={getStatusBadge(item.status)}>
-                                            {item.status}
-                                        </Badge>
-                                        <Badge className={getConditionBadge(item.condition)}>
-                                            {item.condition}
-                                        </Badge>
+                                    <div>
+                                        <p className="font-semibold mb-1">Browse & Filter</p>
+                                        <p className="text-gray-600">Use filters to find the equipment you need. Check availability status.</p>
                                     </div>
                                 </div>
-                                
-                                <div className="mb-3">
-                                    <div className="flex items-center justify-between text-sm">
-                                        <span className="text-gray-600">Available</span>
-                                        <span className="font-medium">
-                                            {item.available_quantity}/{item.total_quantity}
-                                        </span>
+                                <div className="flex items-start gap-3">
+                                    <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                                        2
                                     </div>
-                                    <div className="mt-1 w-full bg-gray-200 rounded-full h-2">
-                                        <div 
-                                            className="bg-blue-500 h-2 rounded-full" 
-                                            style={{ 
-                                                width: `${(item.available_quantity / item.total_quantity) * 100}%` 
-                                            }}
-                                        ></div>
+                                    <div>
+                                        <p className="font-semibold mb-1">Submit Request</p>
+                                        <p className="text-gray-600">Click "Request" and fill out the form with JSA document upload.</p>
                                     </div>
                                 </div>
-                                
-                                <div className="text-xs text-gray-500 mb-3">
-                                    📍 {item.laboratory.name}
+                                <div className="flex items-start gap-3">
+                                    <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                                        3
+                                    </div>
+                                    <div>
+                                        <p className="font-semibold mb-1">Wait for Approval</p>
+                                        <p className="text-gray-600">Lab assistants will review and approve your request.</p>
+                                    </div>
                                 </div>
-                                
-                                <div className="flex gap-2">
-                                    <Link href={`/equipment/${item.id}`} className="flex-1">
-                                        <Button variant="outline" size="sm" className="w-full">
-                                            View Details
-                                        </Button>
-                                    </Link>
-                                    
-                                    {user.role === 'student' && item.status === 'active' && item.available_quantity > 0 && (
-                                        <Button 
-                                            size="sm" 
-                                            className="flex-1"
-                                            onClick={() => handleEquipmentRequest(item.id)}
-                                        >
-                                            Request
-                                        </Button>
-                                    )}
-                                    
-                                    {(user.role === 'lab_assistant' || user.role === 'admin') && (
-                                        <Link href={`/equipment/${item.id}/edit`} className="flex-1">
-                                            <Button size="sm" variant="outline" className="w-full">
-                                                Edit
-                                            </Button>
-                                        </Link>
-                                    )}
-                                </div>
-                            </CardContent>
-                        </Card>
-                    ))}
-                </div>
-
-                {/* Empty State */}
-                {equipment.data.length === 0 && (
-                    <div className="text-center py-12">
-                        <div className="text-6xl mb-4">🔬</div>
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">No equipment found</h3>
-                        <p className="text-gray-600 mb-4">
-                            {Object.keys(filters).some(key => filters[key as keyof typeof filters]) 
-                                ? 'Try adjusting your filters to see more results.'
-                                : 'No equipment has been added yet.'}
-                        </p>
-                        {(user.role === 'lab_assistant' || user.role === 'admin') && (
-                            <Link href="/equipment/create">
-                                <Button>Add First Equipment</Button>
-                            </Link>
-                        )}
-                    </div>
-                )}
-
-                {/* Pagination */}
-                {equipment.last_page > 1 && (
-                    <div className="flex items-center justify-center space-x-2">
-                        {equipment.links.map((link, index) => (
-                            <button
-                                key={index}
-                                onClick={() => link.url && router.get(link.url)}
-                                disabled={!link.url}
-                                className={`px-3 py-2 text-sm rounded-md ${
-                                    link.active
-                                        ? 'bg-blue-500 text-white'
-                                        : link.url
-                                        ? 'text-gray-700 hover:bg-gray-100'
-                                        : 'text-gray-400 cursor-not-allowed'
-                                }`}
-                                dangerouslySetInnerHTML={{ __html: link.label }}
-                            />
-                        ))}
-                    </div>
+                            </div>
+                        </CardContent>
+                    </Card>
                 )}
             </div>
-        </AppShell>
+        </AppLayout>
     );
 }
