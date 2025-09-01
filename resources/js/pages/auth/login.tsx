@@ -18,10 +18,10 @@ type LoginForm = {
 
 interface LoginProps {
     status?: string;
-    canResetPassword: boolean;
+    canRequestPasswordReset?: boolean;
 }
 
-export default function Login({ status, canResetPassword }: LoginProps) {
+export default function Login({ status, canRequestPasswordReset }: LoginProps) {
     const { data, setData, post, processing, errors, reset } = useForm<Required<LoginForm>>({
         email: '',
         password: '',
@@ -60,9 +60,9 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                     <div className="grid gap-2">
                         <div className="flex items-center">
                             <Label htmlFor="password">Password</Label>
-                            {canResetPassword && (
-                                <TextLink href={route('password.request')} className="ml-auto text-sm" tabIndex={5}>
-                                    Forgot password?
+                            {canRequestPasswordReset && (
+                                <TextLink href={route('password-reset-request.create')} className="ml-auto text-sm" tabIndex={5}>
+                                    Request password reset
                                 </TextLink>
                             )}
                         </div>

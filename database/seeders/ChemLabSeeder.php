@@ -52,25 +52,44 @@ class ChemLabSeeder extends Seeder
             return Laboratory::create($lab);
         });
 
-        // Create admin user
+        // Create admin user with proper email domain
         $admin = User::create([
             'name' => 'Admin User',
-            'email' => 'admin@ui.ac.id',
+            'email' => 'admin@che.ui.ac.id',
             'password' => Hash::make('password'),
             'role' => 'admin',
+            'status' => 'active',
             'student_id' => 'ADM001',
             'phone' => '+62812345678901',
             'email_verified_at' => now(),
         ]);
+
+        // Create kepala lab users
+        $kepalaLabs = [];
+        foreach ($laboratories as $index => $lab) {
+            $kepalaLab = User::create([
+                'name' => "Head of " . explode(' ', $lab->name)[0] . " Lab",
+                'email' => "kepala.lab" . ($index + 1) . "@che.ui.ac.id",
+                'password' => Hash::make('password'),
+                'role' => 'kepala_lab',
+                'status' => 'active',
+                'laboratory_id' => $lab->id,
+                'student_id' => 'KL' . str_pad((string)($index + 1), 3, '0', STR_PAD_LEFT),
+                'phone' => '+6281234567800' . ($index + 1),
+                'email_verified_at' => now(),
+            ]);
+            $kepalaLabs[] = $kepalaLab;
+        }
 
         // Create lab assistants
         $labAssistants = [];
         foreach ($laboratories as $index => $lab) {
             $assistant = User::create([
                 'name' => "Lab Assistant " . ($index + 1),
-                'email' => "assistant" . ($index + 1) . "@ui.ac.id",
+                'email' => "laboran" . ($index + 1) . "@che.ui.ac.id",
                 'password' => Hash::make('password'),
                 'role' => 'lab_assistant',
+                'status' => 'active',
                 'laboratory_id' => $lab->id,
                 'student_id' => 'LA' . str_pad((string)($index + 1), 3, '0', STR_PAD_LEFT),
                 'phone' => '+6281234567890' . ($index + 1),
@@ -79,19 +98,52 @@ class ChemLabSeeder extends Seeder
             $labAssistants[] = $assistant;
         }
 
-        // Create sample students
+        // Create dosen users
+        $dosens = [];
+        for ($i = 1; $i <= 3; $i++) {
+            $dosen = User::create([
+                'name' => "Dr. Lecturer " . $i,
+                'email' => "dosen" . $i . "@che.ui.ac.id",
+                'password' => Hash::make('password'),
+                'role' => 'dosen',
+                'status' => 'active',
+                'laboratory_id' => fake()->randomElement($laboratories)->id,
+                'student_id' => 'DSN' . str_pad((string)$i, 3, '0', STR_PAD_LEFT),
+                'phone' => '+62812345678' . str_pad((string)$i, 3, '0', STR_PAD_LEFT),
+                'email_verified_at' => now(),
+            ]);
+            $dosens[] = $dosen;
+        }
+
+        // Create active students
         $students = [];
-        for ($i = 1; $i <= 10; $i++) {
+        for ($i = 1; $i <= 8; $i++) {
             $student = User::create([
                 'name' => "Student " . $i,
                 'email' => "student" . $i . "@ui.ac.id",
                 'password' => Hash::make('password'),
                 'role' => 'student',
+                'status' => 'active',
+                'laboratory_id' => fake()->randomElement($laboratories)->id,
                 'student_id' => '2021' . str_pad((string)$i, 6, '0', STR_PAD_LEFT),
                 'phone' => '+6281234567' . str_pad((string)$i, 3, '0', STR_PAD_LEFT),
                 'email_verified_at' => now(),
             ]);
             $students[] = $student;
+        }
+
+        // Create pending verification students
+        for ($i = 9; $i <= 12; $i++) {
+            $student = User::create([
+                'name' => "Pending Student " . $i,
+                'email' => "pending.student" . $i . "@ui.ac.id",
+                'password' => Hash::make('password'),
+                'role' => 'student',
+                'status' => 'pending_verification',
+                'student_id' => '2024' . str_pad((string)$i, 6, '0', STR_PAD_LEFT),
+                'phone' => '+6281234567' . str_pad((string)$i, 3, '0', STR_PAD_LEFT),
+                'email_verified_at' => now(),
+            ]);
         }
 
         // Create equipment for each laboratory
@@ -209,9 +261,12 @@ class ChemLabSeeder extends Seeder
             }
         }
 
-        $this->command->info('ChemLab database seeded successfully!');
-        $this->command->info('Admin: admin@ui.ac.id / password');
-        $this->command->info('Lab Assistants: assistant1@ui.ac.id to assistant4@ui.ac.id / password');
-        $this->command->info('Students: student1@ui.ac.id to student10@ui.ac.id / password');
+        $this->command->info('ChemLab database seeded successfully with enhanced roles!');
+        $this->command->info('Admin: admin@che.ui.ac.id / password');
+        $this->command->info('Kepala Labs: kepala.lab1@che.ui.ac.id to kepala.lab4@che.ui.ac.id / password');
+        $this->command->info('Lab Assistants: laboran1@che.ui.ac.id to laboran4@che.ui.ac.id / password');
+        $this->command->info('Lecturers: dosen1@che.ui.ac.id to dosen3@che.ui.ac.id / password');
+        $this->command->info('Active Students: student1@ui.ac.id to student8@ui.ac.id / password');
+        $this->command->info('Pending Students: pending.student9@ui.ac.id to pending.student12@ui.ac.id / password');
     }
 }
